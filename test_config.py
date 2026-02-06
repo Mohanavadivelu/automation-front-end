@@ -24,7 +24,7 @@ def test_config():
     # Let's create a dummy project 'audi.env' first to test switching
     audi_path = os.path.join(c1.projects_dir, "audi.env")
     with open(audi_path, 'w') as f:
-        f.write("# Project Configuration\nEXECUTE_GROUP=AUDI_PCTS\n")
+        f.write("#class Project Configuration\nEXECUTE_GROUP=AUDI_PCTS\n")
     
     try:
         print("Switching to 'audi'...")

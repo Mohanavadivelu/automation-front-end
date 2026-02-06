@@ -88,44 +88,22 @@ class AppConfigManager:
         with open(path, 'r') as f:
             lines = f.readlines()
             
-        in_comment = False
         for line in lines:
             line = line.strip()
             if not line:
                 continue
 
-            # Handle XML-style comments
-            if in_comment:
-                if "-->" in line:
-                    in_comment = False
-                continue
-
-            if "<!--" in line:
-                if "-->" in line:
-                    # Inline/Single-line comment: Remove the comment part
-                    start = line.find("<!--")
-                    end = line.find("-->") + 3
-                    line = (line[:start] + line[end:]).strip()
-                    if not line:
-                        continue
-                else:
-                    # Start of multi-line comment
-                    in_comment = True
-                    continue
-
             if line.startswith("#"):
-                # Check for separator lines to ignore
-                if "=====" in line:
-                    continue
-                
-                # Parse section name from comment e.g., "# Device Configuration"
-                section_title = line.lstrip("#").strip()
-                if section_title:
-                    # Remove spaces for class name compatibility
-                    current_section = section_title.replace(" ", "")
-                    # Reset/Init section data
-                    if current_section not in config_data:
-                        config_data[current_section] = {}
+                # Handle Explicit Class Definitions
+                # Format: #class Device Configuration
+                if line.startswith("#class "):
+                     section_title = line[7:].strip() # Remove "#class "
+                     if section_title:
+                        # Remove spaces for class name compatibility
+                        current_section = section_title.replace(" ", "")
+                        if current_section not in config_data:
+                            config_data[current_section] = {}
+                # All other lines starting with # are comments and ignored
                 continue
 
             if "=" in line:

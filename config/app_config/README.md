@@ -25,15 +25,14 @@ Files use a standard `KEY=VALUE` format with **Section Headers**.
 
 ```ini
 # =========================
-# Device Configuration
+#class Device Configuration
 # =========================
 ADB_DEVICE_1_ID=4B091VDAQ000F3
 
 # =========================
-# Project Configuration
+#class Project Configuration
 # =========================
 EXECUTE_GROUP=FERRARI_PCTS
-<!-- SOME_KEY=IGNORED_VALUE -->   <-- XML-style comments are ignored
 ```
 
 ## 2. Dynamic Switching
@@ -58,9 +57,9 @@ print(config.ProjectConfiguration.EXECUTE_GROUP)
 ```
 
 ## 3. Class Names Logic
-The Manager dynamically creates classes based on Section Headers in the loaded `.env` file.
-- `# Device Configuration` -> `config.DeviceConfiguration`
-- `# Project Configuration` -> `config.ProjectConfiguration`
+The Manager dynamically creates classes based on precise **Section definitions**.
+- `#class Device Configuration` -> `config.DeviceConfiguration`
+- Lines starting with `#` but **not** `#class` are treated as comments and ignored.
 
 ## 4. Data Types
 The manager automatically detects:
