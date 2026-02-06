@@ -4,7 +4,7 @@ import os
 # Add the workspace to python path so we can import config
 sys.path.append(os.getcwd())
 
-from config.oem_name.test_group.app_config.app_config_manager import AppConfigManager
+from config.app_config.app_config_manager import AppConfigManager
 
 def test_config():
     print("Testing AppConfigManager...")
