@@ -1,65 +1,68 @@
 # AppConfigManager Developer Guide
 
-This guide explains how to modify the configuration for the automation framework.
+This guide explains how to manage and modify the **Multi-Project Configuration** for the automation framework.
 
-## Configuration File
-The configuration is stored in `config.txt` located in this directory.
+## Directory Structure
+```text
+config/app_config/
+├── app_config_manager.py   # The Singleton Manager
+├── settings.env            # Persistent storage (Stores DEFAULT_PROJECT)
+└── projects/               # Directory containing Project Configurations
+    ├── ferrari.env         # Configuration for Ferrari project
+    ├── audi.env            # Configuration for Audi project
+    └── ...
+```
 
-## How Class Names are Decided
-The `AppConfigManager` dynamically creates classes based on the **Section Headers** in `config.txt`.
+## 1. Projects
+Each project has its own `.env` file located in the `projects/` directory.
 
-The logic represents:
-1. It reads a line starting with `#` (e.g., `# Device Configuration`).
-2. It strips the `#` and whitespace.
-3. It **removes all spaces** to form a valid Python class name.
+### Adding a New Project
+1. Create a new file `projects/<project_name>.env`.
+2. Add your configuration sections and keys.
 
-**Example:**
-- `# Device Configuration` -> `DeviceConfiguration` class.
-- `# Project Configuration` -> `ProjectConfiguration` class.
-- `# My New Section` -> `MyNewSection` class.
+### Configuration Format
+Files use a standard `KEY=VALUE` format with **Section Headers**.
 
-## How to Add New Configurations
-
-### 1. Adding a New Data Member to an Existing Section
-Simply add a new `KEY=VALUE` line under the appropriate section header.
-
-**Example**: Adding `RETRY_COUNT` to `Project Configuration`.
 ```ini
+# =========================
+# Device Configuration
+# =========================
+ADB_DEVICE_1_ID=4B091VDAQ000F3
+
 # =========================
 # Project Configuration
 # =========================
-ENABLE_VIDEO_ENABLED=NO
-...
-RETRY_COUNT=3  <-- Added this line
+EXECUTE_GROUP=FERRARI_PCTS
+<!-- SOME_KEY=IGNORED_VALUE -->   <-- XML-style comments are ignored
 ```
-**Access in Code:**
+
+## 2. Dynamic Switching
+The `AppConfigManager` supports switching projects at runtime. The selection is **persistent** (saved to `settings.env`).
+
+### API Usage
 ```python
-config.ProjectConfiguration.RETRY_COUNT
-# OR
-config("RETRY_COUNT")
+from config.app_config.app_config_manager import AppConfigManager
+
+config = AppConfigManager()
+
+# 1. Get List of Available Projects
+# Returns: ['ferrari', 'audi']
+projects = config.get_available_projects()
+
+# 2. Switch Project
+# This updates settings.env and reloads the configuration immediately.
+config.set_default_project("audi")
+
+# 3. Access Config Values
+print(config.ProjectConfiguration.EXECUTE_GROUP)
 ```
 
-### 2. Adding a New Section
-1. Add a separator (optional, but good for readability).
-2. Add a line starting with `# [Your Section Name]`.
-3. Add your keys below it.
+## 3. Class Names Logic
+The Manager dynamically creates classes based on Section Headers in the loaded `.env` file.
+- `# Device Configuration` -> `config.DeviceConfiguration`
+- `# Project Configuration` -> `config.ProjectConfiguration`
 
-**Example**:
-```ini
-# =========================
-# Database Settings
-# =========================
-DB_HOST=localhost
-DB_PORT=5432
-```
-
-**Access in Code:**
-```python
-# The class name becomes 'DatabaseSettings' (spaces removed)
-print(config.DatabaseSettings.DB_HOST)
-```
-
-## Data Types
+## 4. Data Types
 The manager automatically detects:
 - **Booleans**: `TRUE`, `FALSE`, `YES`, `NO`, `ON`, `OFF` (case-insensitive).
 - **Integers**: `123`, `0`.

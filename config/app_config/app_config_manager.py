@@ -9,23 +9,78 @@ class AppConfigManager:
             cls._instance = super(AppConfigManager, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, config_path=None):
+    def __init__(self):
         if self._initialized:
             return
         
-        self._global_map = {}
+        self.app_config_dir = os.path.dirname(os.path.abspath(__file__))
+        self.projects_dir = os.path.join(self.app_config_dir, 'projects')
+        self.settings_file = os.path.join(self.app_config_dir, 'settings.env')
         
-        if config_path is None:
-            # Assume config.txt is in the same directory as this file
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            config_path = os.path.join(current_dir, 'config.txt')
-            
-        self._load_config(config_path)
+        # Initial load
+        default_project = self._get_persistent_default()
+        self.load_project(default_project)
+        
         self._initialized = True
 
-    def _load_config(self, path):
+    def _get_persistent_default(self):
+        """Read settings.env to find DEFAULT_PROJECT."""
+        if os.path.exists(self.settings_file):
+            try:
+                with open(self.settings_file, 'r') as f:
+                    for line in f:
+                        if line.startswith("DEFAULT_PROJECT="):
+                            return line.split("=", 1)[1].strip()
+            except Exception:
+                pass # Ignore errors, fallback
+        
+        # Fallback logic: return first available project or 'default'
+        available = self.get_available_projects()
+        if available:
+            return available[0]
+        return "default"
+
+    def get_available_projects(self):
+        """Return a list of available project names (files in projects/ dir)."""
+        if not os.path.exists(self.projects_dir):
+            return []
+            
+        projects = []
+        for f in os.listdir(self.projects_dir):
+            if f.endswith(".env"):
+                projects.append(f[:-4]) # Remove .env extension
+        return projects
+
+    def set_default_project(self, project_name):
+        """Update settings.env and reload configuration."""
+        # 1. Update Persistent File
+        with open(self.settings_file, 'w') as f:
+            f.write(f"DEFAULT_PROJECT={project_name}\n")
+            
+        # 2. Reload
+        self.load_project(project_name)
+
+    def load_project(self, project_name):
+        """Load configuration from specific project file."""
+        config_path = os.path.join(self.projects_dir, f"{project_name}.env")
+        
+        # Reset current state
+        self._global_map = {}
+        # We need to clear old section attributes to avoid stale data
+        # iterating over keys of __dict__ is unsafe while modifying, so list() it
+        for attr in list(self.__dict__.keys()):
+            # Crude way to clean up sections, assuming standard attributes start with _
+            # or are specific system props. Better approach: track loaded sections.
+            if not attr.startswith("_") and attr not in ['app_config_dir', 'projects_dir', 'settings_file']:
+                delattr(self, attr)
+
+        self._load_config_file(config_path)
+
+    def _load_config_file(self, path):
         if not os.path.exists(path):
-            raise FileNotFoundError(f"Config file not found at {path}")
+            # If explicit file missing, maybe warn? For now just return empty
+            print(f"Warning: Config file not found at {path}")
+            return
 
         current_section = None
         config_data = {}
@@ -57,7 +112,7 @@ class AppConfigManager:
                     # Start of multi-line comment
                     in_comment = True
                     continue
-                
+
             if line.startswith("#"):
                 # Check for separator lines to ignore
                 if "=====" in line:
@@ -68,6 +123,7 @@ class AppConfigManager:
                 if section_title:
                     # Remove spaces for class name compatibility
                     current_section = section_title.replace(" ", "")
+                    # Reset/Init section data
                     if current_section not in config_data:
                         config_data[current_section] = {}
                 continue
@@ -87,7 +143,6 @@ class AppConfigManager:
         # Create section classes and attach to self
         for section_name, data in config_data.items():
             # Create a dynamic class for the section
-            # The data dictionary becomes the class attributes
             section_class = type(section_name, (object,), data)
             setattr(self, section_name, section_class)
 

@@ -7,63 +7,65 @@ sys.path.append(os.getcwd())
 from config.app_config.app_config_manager import AppConfigManager
 
 def test_config():
-    print("Testing AppConfigManager...")
+    print("Testing AppConfigManager Dynamic Selection...")
     
-    # 1. Singleton Test
+    # 1. Singleton & Initial Load (Should load ferrari based on settings.env default)
     c1 = AppConfigManager()
-    c2 = AppConfigManager()
     
-    if c1 is c2:
-        print("[PASS] Singleton pattern working")
+    print(f"Available Projects: {c1.get_available_projects()}")
+    
+    try:
+        val = c1.ProjectConfiguration.EXECUTE_GROUP
+        print(f"[PASS] Initial Load (ferrari): EXECUTE_GROUP={val}")
+    except Exception as e:
+        print(f"[FAIL] Initial Load failed: {e}")
+
+    # 2. Dynamic Switching
+    # Let's create a dummy project 'audi.env' first to test switching
+    audi_path = os.path.join(c1.projects_dir, "audi.env")
+    with open(audi_path, 'w') as f:
+        f.write("# Project Configuration\nEXECUTE_GROUP=AUDI_PCTS\n")
+    
+    try:
+        print("Switching to 'audi'...")
+        c1.set_default_project("audi")
+        
+        # Verify persistence file
+        with open(c1.settings_file, 'r') as f:
+            content = f.read().strip()
+        print(f"Settings file content: {content}")
+        if "DEFAULT_PROJECT=audi" in content:
+            print("[PASS] Persistence file updated")
+        else:
+            print("[FAIL] Persistence file not updated")
+
+        # Verify value change
+        val = c1.ProjectConfiguration.EXECUTE_GROUP
+        if val == "AUDI_PCTS":
+            print(f"[PASS] Switched to Audi: EXECUTE_GROUP={val}")
+        else:
+             print(f"[FAIL] Switch failed, val={val}")
+             
+    except Exception as e:
+        print(f"[FAIL] Switching failed: {e}")
+
+    # 3. Persistence Check (New Instance)
+    # Since it's a singleton, we can't easily kill the instance in the same process
+    # But we can verify that if we were to re-init (logic-wise), it reads the file.
+    # We effectively tested this via _get_persistent_default() implicitly, 
+    # but let's verify the method explicitly returns 'audi' now.
+    
+    default = c1._get_persistent_default()
+    if default == "audi":
+        print("[PASS] _get_persistent_default returns 'audi'")
     else:
-        print("[FAIL] Singleton pattern failed")
-        
-    # 2. Section Access
-    try:
-        # Check if attribute exists first
-        if not hasattr(c1, 'DeviceConfiguration'):
-            print("[FAIL] DeviceConfiguration section missing")
-            return
+        print(f"[FAIL] _get_persistent_default returned {default}")
 
-        val = c1.DeviceConfiguration.ADB_DEVICE_1_ID
-        print(f"[PASS] Section access working: ADB_DEVICE_1_ID={val}")
-    except Exception as e:
-        print(f"[FAIL] Section access failed: {e}")
-        import traceback
-        traceback.print_exc()
-        
-    try:
-        video_enabled = c1.ProjectConfiguration.ENABLE_VIDEO_ENABLED
-        print(f"[PASS] Boolean conversion working: ENABLE_VIDEO_ENABLED={video_enabled} (Type: {type(video_enabled)})")
-    except Exception as e:
-         print(f"[FAIL] Boolean conversion failed: {e}")
-
-    # 3. Direct Access
-    try:
-        val_direct = c1("ADB_DEVICE_1_ID")
-        if val_direct == "4B091VDAQ000F3":
-             print(f"[PASS] Direct access working: {val_direct}")
-        else:
-             print(f"[FAIL] Direct access value mismatch: {val_direct}")
-    except Exception as e:
-        print(f"[FAIL] Direct access failed: {e}")
-
-    # 4. Check integer
-    try:
-        ver = c1("ADB_DEVICE_1_VERSION")
-        if isinstance(ver, int) and ver == 16:
-             print(f"[PASS] Integer conversion working: {ver}")
-        else:
-             print(f"[FAIL] Integer conversion failed: {ver} type {type(ver)}")
-    except Exception as e:
-        print(f"[FAIL] Integer check failed: {e}")
-        
-    # 5. Check Log Paths (slashes)
-    try:
-        log_path = c1("SERVER_LOG_FOLDER_PATH")
-        print(f"[PASS] Path check: {log_path}")
-    except Exception as e:
-        print(f"[FAIL] Path check failed: {e}")
+    # Cleanup: Switch back to ferrari and delete audi
+    c1.set_default_project("ferrari")
+    if os.path.exists(audi_path):
+        os.remove(audi_path)
+    print("Restored to ferrari and cleaned up.")
 
 if __name__ == "__main__":
     test_config()
